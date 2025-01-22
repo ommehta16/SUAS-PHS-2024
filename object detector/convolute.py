@@ -70,21 +70,45 @@ class EdgeDetect:
     @staticmethod
     def dog(img: np.ndarray,r1:float,r2:float,prominence:float) -> np.ndarray:
         '''Apply the difference of gaussians to an image: `r1` > `r2`, `prominence` is a scalar applied to the DOG filter'''
-        flt = prominence*20*(Blur.generate_gauss_kernel(16,r1)-Blur.generate_gauss_kernel(16,r2)) # DoG => use the difference of two gaussian filters as the convolution filter
+        flt = prominence*20*(Blur.generate_gauss_kernel(32,r1)-Blur.generate_gauss_kernel(32,r2)) # DoG => use the difference of two gaussian filters as the convolution filter
         
         tmp = np.clip(conv_1_chnl(0.3 * img[:,:,0] + 0.59*img[:,:,1] + 0.11*img[:,:,2],flt),0,255)
-        for c in range(3): img[:,:,c] = tmp
+        for c in range(3): img[:,:,c] = tmp #np.clip(conv_1_chnl(img[:,:,c],flt),0,255)
         return img
+    def sobel(img: np.ndarray) -> np.ndarray:
+        # sobel operator is so nice :)
+        fltx = np.array(
+            [[1, 0, -1],
+            [2,0,-2],
+            [1,0,-1]]
+        )
+        flty = np.array(
+            [
+                [1,2,1],
+                [0,0,0],
+                [-1,-2,-1]
+            ]
+        )
+        x = convolute(img,fltx)
+        y = convolute(img,flty)
+        tmp = np.ndarray(img.shape[:2]).astype(int)
+        for i in range(x.shape[0]):
+            for j in range(x.shape[1]):
+                tmp[i,j] = ((x[i,j][0]*.3 + x[i,j][1]*.59 + x[i,j][0]*.11)**2 + (y[i,j][0]*.3 + y[i,j][1]*.59 + y[i,j][0]*.11)**2)**0.5
+        for c in range(3): img[:,:,c] = tmp
+        return np.clip(img,0,255)
 
 # Takes 36.110 seconds -- That's SLOW
 if __name__ == "__main__":
     from img_io import *
     import time
-    img_arr = img_to_arr(open_img("object detector/cat.jpeg"))
+    img_arr = img_to_arr(open_img("test.png"))
     
     start = time.time()
-    new_img_arr = Blur.gaussian(img_arr,10,15)
+    new_img_arr = EdgeDetect.sobel(img_arr)
+    new_img_arr_1 = EdgeDetect.dog(img_arr,2.25,2,4)
     end = time.time()
     
-    arr_to_img(new_img_arr).save("cat1.jpeg")
+    arr_to_img(new_img_arr).save("test1.png")
+    arr_to_img(new_img_arr_1).save("test2.png")
     print(str(end-start) + " seconds")
