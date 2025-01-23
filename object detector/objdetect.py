@@ -10,6 +10,8 @@ def main():
     inp_img_fp = "road.jpg"
 
     img = cv2.imread(inp_img_fp,1)
+
+    rn = time.time()
     img2 = np.array(cv2.Canny(img,250,500))
 
     visited = set()
@@ -38,11 +40,24 @@ def main():
             if (b == t or l == r): continue
             boundingBoxes.append(((b-t)*(r-l),t,l,b,r))
     
-    for box in boundingBoxes:
+    # for c in range(3):
+    #     img[:,:,c] = img2
+    taken = np.zeros(img2.shape,int)
+    boundingBoxes.sort()
+
+    i = len(boundingBoxes)-1
+    while (i>=0):
+        box = boundingBoxes[i]
+        t, l, b, r = box[1:]
+        if(taken[l,t] or taken[r,t] or taken[l,b] or taken[r,b]):
+            i-=1
+            continue
+        taken[l-20:r+20,t-20:b+20] = 1
         if (float(box[4]-box[2])/(box[3]-box[1]) < 1/6 or float(box[4]-box[2])/(box[3]-box[1]) > 6): continue
         if (box[0] < img.size * 0.00001 or box[0] > img.size * 0.1): continue
-        cv2.rectangle(img,(box[1]-5,box[2]-5),(box[3]+5,box[4]+5),(0,0,0),2)
-
+        cv2.rectangle(img,(box[1]-5,box[2]-5),(box[3]+5,box[4]+5),(0,0,255),2)
+        i-=1
+    print(time.time()-rn)
     img = img[:,:,::-1]
     # print(boundingBoxes)
     plt.imshow(img,interpolation="bicubic")
