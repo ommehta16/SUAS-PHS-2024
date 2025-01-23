@@ -7,12 +7,13 @@ import cv2
 from collections import deque
 
 def main():
-    inp_img_fp = "road.jpg"
+    IMG_NAME = "road.jpg"
+    inp_img_fp = "test_images/" + IMG_NAME
 
     img = cv2.imread(inp_img_fp,1)
 
     rn = time.time()
-    img2 = np.array(cv2.Canny(img,250,500))
+    img2 = np.array(cv2.Canny(cv2.GaussianBlur(img,[3,3],sigmaX=0.5,sigmaY=0.5),250,500))
 
     visited = set()
     toVisit = deque()
@@ -39,9 +40,11 @@ def main():
                             toVisit.append((cX+i,cY+j))
             if (b == t or l == r): continue
             boundingBoxes.append(((b-t)*(r-l),t,l,b,r))
-    
+    # print(len(boundingBoxes))
     # for c in range(3):
     #     img[:,:,c] = img2
+
+
     taken = np.zeros(img2.shape,int)
     boundingBoxes.sort()
 
@@ -53,8 +56,12 @@ def main():
             i-=1
             continue
         taken[l-20:r+20,t-20:b+20] = 1
-        if (float(box[4]-box[2])/(box[3]-box[1]) < 1/6 or float(box[4]-box[2])/(box[3]-box[1]) > 6): continue
-        if (box[0] < img.size * 0.00001 or box[0] > img.size * 0.1): continue
+        if (float(box[4]-box[2])/(box[3]-box[1]) < 1/6 or float(box[4]-box[2])/(box[3]-box[1]) > 6):
+            i-=1
+            continue
+        if (box[0] < img.size * 0.00005 or box[0] > img.size * 0.03): 
+            i-=1
+            continue
         cv2.rectangle(img,(box[1]-5,box[2]-5),(box[3]+5,box[4]+5),(0,0,255),2)
         i-=1
     print(time.time()-rn)
@@ -63,7 +70,7 @@ def main():
     plt.imshow(img,interpolation="bicubic")
     plt.xticks([]); plt.yticks([])
     plt.show()
-    cv2.imwrite("roadbw.jpg",img)
+    # cv2.imwrite("roadbw.jpg",img)
 
     # TWO WAYS OF CONTINUING:
     #  - just dfs to find clusters √
