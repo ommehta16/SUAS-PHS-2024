@@ -7,12 +7,15 @@ import cv2
 from collections import deque
 
 def main():
-    IMG_NAME = "road.jpg"
+    IMG_NAME = "test.png"
     inp_img_fp = "test_images/" + IMG_NAME
 
     img = cv2.imread(inp_img_fp,1)
 
     rn = time.time()
+
+    # can try the ML way
+
     img2 = np.array(cv2.Canny(cv2.GaussianBlur(img,[3,3],sigmaX=0.5,sigmaY=0.5),250,500))
 
     visited = set()

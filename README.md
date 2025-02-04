@@ -2,5 +2,8 @@
 
 <h2>Object Detection</h2>
 **TODO:**
- - Figure out if opencv is better for this?
- - Cook up own object detection stuff?
+
+ - try ML stuff??///1??????1?????
+   - no
+ - MORE TEST IMAGES
+   - FROM ACTUAL PLANE!!!!!!///!!!
