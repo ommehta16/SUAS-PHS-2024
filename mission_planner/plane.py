@@ -23,29 +23,42 @@ class Plane:
         self.alt = 0
         self.rel_alt = 0
         self.connection = connection
+
+
     def update_pos(self) -> None:
         try:
             
             
             lat = self.connection.messages['GLOBAL_POSITION_INT'].lat
             lon = self.connection.messages['GLOBAL_POSITION_INT'].long
-            alt = self.connection.messages['GLOBAL_POSITION_INT'].alt
+            self.pos = [lat,lon]
+            self.alt = self.connection.messages['GLOBAL_POSITION_INT'].alt
 
-            vel = [
+            self.vel = [
                 self.connection.messages['GLOBAL_POSITION_INT'].vx,
                 self.connection.messages['GLOBAL_POSITION_INT'].vy,
                 self.connection.messages['GLOBAL_POSITION_INT'].vz,
-                ]
-            alt = self.connection.messages['GLOBAL_POSITION_INT'].alt
-            rel_alt = self.connection.messages['GLOBAL_POSITION_INT'].relative_alt
+            ]
+
+            self.alt = self.connection.messages['GLOBAL_POSITION_INT'].alt
+            self.rel_alt = self.connection.messages['GLOBAL_POSITION_INT'].relative_alt
         except:
             try: 
-                lat = self.connection.messages['GPS_RAW_INT'].lat
-                lon = self.connection.messages['GPS_RAW_INT'].lon
-                alt = self.connection.messages['GPS_RAW_INT'].alt
-                cog = self.connection.messages['GPS_RAW_INT'].alt # direction that moving over ground
+                self.lat = self.connection.messages['GPS_RAW_INT'].lat
+                self.lon = self.connection.messages['GPS_RAW_INT'].lon
+                self.alt = self.connection.messages['GPS_RAW_INT'].alt
+                cog = self.connection.messages['GPS_RAW_INT'].cog # direction that moving over ground
+                v = self.connection.messages['GPS_RAW_INT'].vel
+
+                # DO EPIC TRIG HERE
+
+                self.vel = [
+                    math.sin(cog) * v,
+                    math.cos(cog) * v,
+                    0
+                ]
 
 
-                rel_alt = self.connection.messages['GPS_RAW_INT'].relative_alt
+                self.rel_alt = self.connection.messages['GPS_RAW_INT'].relative_alt
             except:
-                print('lol where tf even are we')
+                print('lol where tf even are we buhhhhh')
