@@ -3,32 +3,30 @@ import time
 import math
 
 class Plane:
-    
-    
-    
-    def __init__(self,connection:mavutil.mavtcp|mavutil.mavtcpin|mavutil.mavudp|mavutil.mavwebsocket|mavutil.mavmcast|mavutil.DFReader_binary|mavutil.CSVReader|mavutil.DFReader_text|mavutil.mavchildexec|mavutil.mavmmaplog|mavutil.mavlogfile|mavutil.mavserial):
+    def __init__(self,connection):
         self.vel = [0,0,0]
         '''
         [x, y, z]
+        
         positive is north/east/down respectively
         '''
 
         self.loc = [0,0]
         '''
         [lat,long]
-        idk how these work
-        the earth's a sphere apparently?
+
+        (the earth's a sphere apparently?)
         '''
 
         self.alt = 0
         self.rel_alt = 0
         self.connection = connection
 
+        # SET OTHER PROPS HERE
+
 
     def update_pos(self) -> None:
         try:
-            
-            
             lat = self.connection.messages['GLOBAL_POSITION_INT'].lat
             lon = self.connection.messages['GLOBAL_POSITION_INT'].long
             self.pos = [lat,lon]
@@ -62,3 +60,4 @@ class Plane:
                 self.rel_alt = self.connection.messages['GPS_RAW_INT'].relative_alt
             except:
                 print('lol where tf even are we buhhhhh')
+    
