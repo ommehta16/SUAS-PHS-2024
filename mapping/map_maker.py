@@ -1,6 +1,26 @@
 import numpy as np
 from PIL import Image
 import multiprocessing as mp
+import multiprocessing.connection
+import time
+
+def develop_map(conn:multiprocessing.connection.Connection):
+    running = True
+    while True:
+        # simple plumbing work :)
+        while conn.poll():
+            newData = conn.recv()
+
+            if type(newData) == str:
+                if newData == "stop":
+                    running = False
+                    break
+            elif type(newData) == int:
+                ...
+            else:
+                ...
+
+
 
 def make_map(images:np.ndarray[Image.Image], coords:np.ndarray, imgSize:tuple[float,float]) -> np.array:
     '''

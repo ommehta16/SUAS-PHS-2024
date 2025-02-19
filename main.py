@@ -2,9 +2,9 @@ import time
 import math
 import multiprocessing as mp
 
-from plane import Plane
-import planner
-
+from mission_planner.plane import Plane
+from mission_planner import planner
+from mapping import map_maker
 
 from pymavlink import mavutil, mavwp
 
@@ -21,7 +21,7 @@ CONNECTION_PORT:str = 'udpin:localhost:14540'
 
 def main():
 
-    connection = mavutil.mavlink_connection(CONNECTION_PORT,baud=57600)
+    connection = mavutil.mavlink_connection(CONNECTION_PORT,baud=57600) # we're connected over wire, so shouldn't lose anything
     if (not DEBUG):
         connection.wait_heartbeat()
         print(f"Heartbeat recieved from {connection.target_system} via {connection.target_component}")
@@ -39,14 +39,16 @@ def main():
     START = time.time()
     MAX_PULL_WAIT = 5
 
-    conn, plan_conn = mp.Pipe(duplex=True)
+    plan_conn, tmp = mp.Pipe(duplex=True)
+    tmp1, tmp2 = mp.Pipe(duplex = True)
 
-    a = mp.Process(target=planner.plan,args=(plan_conn,))
+    brain = mp.Process(target=planner.plan,args=(tmp,tmp1))
+    mapper = mp.Process(target = map_maker.develop_map, args=(tmp2))
     
-    a.start()
+    brain.start()
     joined = False
 
-    conn.send("loolololloololololol")
+    if DEBUG: plan_conn.send("loolololloololololol")
     lastPull = time.time()
     while True:
         now:float = time.time()
@@ -57,9 +59,9 @@ def main():
             last_beat = now
         susser.update_pos()
         
-        while conn.poll() and (time.time()-now < TIME_INCREMENT or now-lastPull >= MAX_PULL_WAIT):
+        while plan_conn.poll() and (time.time()-now < TIME_INCREMENT or now-lastPull >= MAX_PULL_WAIT):
             lastPull = time.time()
-            newData = conn.recv()
+            newData = plan_conn.recv()
 
             # HOW SEND DATA
             if type(newData) == str:
@@ -68,6 +70,10 @@ def main():
                 ...
             else:
                 ...
+
+        
+            # activate drop mechanism -- make function, expect to just need set 1 GPIO high
+
         # pipe susser to planner process
         # pipe command changes from planner process
         #   what commands?
@@ -77,7 +83,7 @@ def main():
         time.sleep(max(TIME_INCREMENT - float(time.time()-now),0))
 
         if (time.time()-START > 10) and not joined:
-            a.join()
+            brain.join()
             joined = True
 
 if __name__ == "__main__": main()
