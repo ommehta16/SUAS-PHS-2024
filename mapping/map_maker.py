@@ -4,6 +4,7 @@ import multiprocessing as mp
 import multiprocessing.connection
 import time
 
+
 def develop_map(conn:multiprocessing.connection.Connection):
     running = True
     while True:

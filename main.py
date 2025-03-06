@@ -7,31 +7,25 @@ from mission_planner import planner
 from mapping import map_maker
 
 from pymavlink import mavutil, mavwp
+from pymavlink.dialects.v20 import common as mavlink2
 
-DEBUG:bool = True
-CONNECTION_PORT:str = 'udpin:localhost:14540'
+from VAR import *
 
-# mavlink simulator ^
+def set_wp(wp: tuple[int,tuple]):
+    '''
+    Set waypoint # `newData[0]` to newData[1]
 
-# CONNECTIONPORT = '/dev/serial0'
-# for final deployment ^
-
-# CONNECTIONPORT = '/dev/ttyAMA0'
-# or this maybe? idk ^
+    newData[1] (in form lat, long, alt)
+    '''
 
 def main():
-
     connection = mavutil.mavlink_connection(CONNECTION_PORT,baud=57600) # we're connected over wire, so shouldn't lose anything
+    
     if (not DEBUG):
         connection.wait_heartbeat()
         print(f"Heartbeat recieved from {connection.target_system} via {connection.target_component}")
 
     susser = Plane(connection)
-
-    # DOCS:
-    # - mavlink/message_definitions/v1.0/common.xml
-    # - https://mavlink.io/en/mavgen_python/
-    # - https://mavlink.io/en/messages/common.html
 
     last_beat:float = time.time()
 
@@ -42,13 +36,14 @@ def main():
     plan_conn, tmp = mp.Pipe(duplex=True)
     tmp1, tmp2 = mp.Pipe(duplex = True)
 
-    brain = mp.Process(target=planner.plan,args=(tmp,tmp1))
+    brain = mp.Process(target = planner.plan,args=(tmp,tmp1))
     mapper = mp.Process(target = map_maker.develop_map, args=(tmp2))
     
     brain.start()
     joined = False
 
     if DEBUG: plan_conn.send("loolololloololololol")
+    
     lastPull = time.time()
     while True:
         now:float = time.time()
@@ -68,17 +63,14 @@ def main():
                 ...
             elif type(newData) == int:
                 ...
-            else:
-                ...
-
-        
-            # activate drop mechanism -- make function, expect to just need set 1 GPIO high
-
-        # pipe susser to planner process
-        # pipe command changes from planner process
-        #   what commands?
-
-        # send changes to susser
+            elif type(newData) == list[tuple]: 
+                '''
+                Set our current waypoints to newData
+                
+                newData[i] (in form lat, long, alt)
+                '''
+            elif type(newData) == tuple[int,tuple]: set_wp(newData)
+            else: ...
 
         time.sleep(max(TIME_INCREMENT - float(time.time()-now),0))
 
