@@ -11,21 +11,65 @@ from pymavlink.dialects.v20 import common as mavlink2
 
 from VAR import *
 
-def set_wp(wp: tuple[int,tuple]):
-    '''
-    Set waypoint # `newData[0]` to newData[1]
+def set_wps(wps: list[tuple], master) -> None:
+        '''
+        Set all waypoints to `wps`
 
-    newData[1] (in form lat, long, alt)
-    '''
+        `wp[i]` in form lat, long, alt
+
+        '''
+        master.mav.clear_all_send(
+            target_system=master.target_system,
+            target_component=master.target_component
+        ) # clears all waypoints
+        
+        send_wps(wps)
+
+def send_wps(wps: list[tuple], master) -> None:
+        '''
+        Send a list of waypoints (`wps`) in form (`lat`, `lon`,`alt`) to master
+
+        '''
+        master.mav.mission_count_send(
+            target_system=master.target_system,
+            target_component=master.target_component,
+            count=len(wps),
+        )
+
+        for i, wp in enumerate(wps):
+            master.mav.mission_item_send(
+                target_system = master.target_system,
+                target_component = master.target_component,
+                seq=i, # waypoint number
+                frame=mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                command=mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, # go to the waypoint, nothing fancy
+                current=0,  # We don't set it to the current waypoint
+                autocontinue=1,  # Continue to the next waypoint
+                param1=0,  # Hold time (seconds)
+                param2=0,  # Acceptance radius (meters)
+                param3=0,  # Pass through radius (meters)
+                param4=float('nan'),  # Yaw angle -- we don't care here
+                x=wp[0], # lat
+                y=wp[1], # lon
+                z=wp[2], # alt
+            )
+            i+=1
+
+        mode_id = master.mode_mapping()['AUTO']
+        master.mav.set_mode_send(
+            master.target_system,
+            mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+            mode_id
+        )
 
 def main():
-    connection = mavutil.mavlink_connection(CONNECTION_PORT,baud=57600) # we're connected over wire, so shouldn't lose anything
-    
-    if (not DEBUG):
-        connection.wait_heartbeat()
-        print(f"Heartbeat recieved from {connection.target_system} via {connection.target_component}")
+    master = mavutil.mavlink_connection(CONNECTION_PORT,baud=57600) # we're connected over wire, so shouldn't lose anything
 
-    susser = Plane(connection)
+    if (not DEBUG):
+        master.wait_heartbeat()
+        print(f"Heartbeat recieved from {master.target_system} via {master.target_component}")
+
+    plane = Plane(master)
 
     last_beat:float = time.time()
 
@@ -40,37 +84,34 @@ def main():
     mapper = mp.Process(target = map_maker.develop_map, args=(tmp2))
     
     brain.start()
+    mapper.start()
     joined = False
-
-    if DEBUG: plan_conn.send("loolololloololololol")
     
     lastPull = time.time()
+    
     while True:
         now:float = time.time()
 
         if (now - last_beat >= 1.0):
-            connection.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
+            master.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
                                           mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)
             last_beat = now
-        susser.update_pos()
-        
+        if plane.update_pos(): plan_conn.send(plane)
+
         while plan_conn.poll() and (time.time()-now < TIME_INCREMENT or now-lastPull >= MAX_PULL_WAIT):
             lastPull = time.time()
             newData = plan_conn.recv()
 
             # HOW SEND DATA
-            if type(newData) == str:
-                ...
-            elif type(newData) == int:
-                ...
+            if type(newData) == int: ...
             elif type(newData) == list[tuple]: 
                 '''
                 Set our current waypoints to newData
                 
                 newData[i] (in form lat, long, alt)
                 '''
-            elif type(newData) == tuple[int,tuple]: set_wp(newData)
-            else: ...
+
+                set_wps(newData,master)
 
         time.sleep(max(TIME_INCREMENT - float(time.time()-now),0))
 

@@ -3,7 +3,7 @@ import time
 import math
 
 class Plane:
-    def __init__(self,connection):
+    def __init__(self,master):
         self.vel = [0,0,0]
         '''
         [x, y, z]
@@ -20,44 +20,55 @@ class Plane:
 
         self.alt = 0
         self.rel_alt = 0
-        self.connection = connection
+        self.master = master
 
         # SET OTHER PROPS HERE
 
 
-    def update_pos(self) -> None:
+    def update_pos(self) -> bool:
+        '''
+        Pull current position from mavlink
+
+        returns whether the position changed, **NOT** success/failure
+        '''
         try:
-            lat = self.connection.messages['GLOBAL_POSITION_INT'].lat
-            lon = self.connection.messages['GLOBAL_POSITION_INT'].long
+            new_pos = self.master.messages['GLOBAL_POSITION_INT']
+            if self.pos == [new_pos.lat, new_pos.long] and self.alt==new_pos.alt and self.vel == [new_pos.vx, new_pos.vy, new_pos.vz] and self.alt == new_pos.alt and self.rel_alt == new_pos.relative_alt: return False
+            
+            lat = new_pos.lat
+            lon = new_pos.long
             self.pos = [lat,lon]
-            self.alt = self.connection.messages['GLOBAL_POSITION_INT'].alt
+            self.alt = new_pos.alt
 
             self.vel = [
-                self.connection.messages['GLOBAL_POSITION_INT'].vx,
-                self.connection.messages['GLOBAL_POSITION_INT'].vy,
-                self.connection.messages['GLOBAL_POSITION_INT'].vz,
+                new_pos.vx,
+                new_pos.vy,
+                new_pos.vz,
             ]
 
-            self.alt = self.connection.messages['GLOBAL_POSITION_INT'].alt
-            self.rel_alt = self.connection.messages['GLOBAL_POSITION_INT'].relative_alt
+            self.alt = new_pos.alt
+            self.rel_alt = new_pos.relative_alt
+            return True
         except:
-            try: 
-                self.lat = self.connection.messages['GPS_RAW_INT'].lat
-                self.lon = self.connection.messages['GPS_RAW_INT'].lon
-                self.alt = self.connection.messages['GPS_RAW_INT'].alt
-                cog = self.connection.messages['GPS_RAW_INT'].cog # direction that moving over ground
-                v = self.connection.messages['GPS_RAW_INT'].vel
-
-                # DO EPIC TRIG HERE
+            try:
+                new_pos = self.master.messages['GPS_RAW_INT']
+                if self.pos == [new_pos.lat, new_pos.long] and self.alt==new_pos.alt and self.vel == [math.sin(cog) * v, math.cos(cog) * v, self.vel[2]]  and self.rel_alt == new_pos.relative_alt: return False
+                self.lat = new_pos.lat
+                self.lon = new_pos.lon
+                self.alt = new_pos.alt
+                cog = new_pos.cog
+                v = new_pos.vel
 
                 self.vel = [
                     math.sin(cog) * v,
                     math.cos(cog) * v,
-                    0
+                    self.vel[2] # keep or throw?
                 ]
 
 
-                self.rel_alt = self.connection.messages['GPS_RAW_INT'].relative_alt
+                self.rel_alt = new_pos.relative_alt
+                return True
             except:
                 print('lol where tf even are we buhhhhh')
+                return False
     
