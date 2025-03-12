@@ -11,12 +11,49 @@ from pymavlink.dialects.v20 import common as mavlink2
 
 from VAR import *
 
+def add_fence(master) -> None:
+    wps:list[tuple[int]] = GEOFENCE
+    for i, wp in enumerate(wps):
+        master.mav.mission_item_send(
+            target_system = master.target_system,
+            target_component = master.target_component,
+            seq=i, # waypoint number
+            frame=mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+            command=mavutil.mavlink.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_INCLUSION,
+            current=0,  # We don't set it to the current waypoint
+            autocontinue=1,  # Continue to the next waypoint
+            param1=len(wps),  # 
+            param2=int('NaN'),  #
+            param3=int('NaN'),  #
+            param4=int('NaN'),  #
+            x=wp[0], # lat
+            y=wp[1], # lon
+            z=int('NaN'), # alt
+        )
+
+    master.mav.command_long_send(
+        target_system = master.target_system,
+        target_component = master.target_component,
+        command=mavutil.mavlink.MAV_CMD_DO_FENCE_ENABLE,
+        confirmation=0,
+        param1=1, # 0 --> disable, 1 --> enable, 2 --> cooked
+        param2=0, # 0 --> apply to all, otherwise=bitmasks for ones to do
+        param3=float('NaN'),
+        param4=float('NaN'),
+        param5=float('NaN'),
+        param6=float('NaN'),
+        param7=float('NaN')
+    )
+
+    
+
 def set_wps(wps: list[tuple], master) -> None:
         '''
         Set all waypoints to `wps`
 
         `wp[i]` in form lat, long, alt
 
+        **Replaces** waypoint list
         '''
         master.mav.clear_all_send(
             target_system=master.target_system,
@@ -29,6 +66,7 @@ def send_wps(wps: list[tuple], master) -> None:
         '''
         Send a list of waypoints (`wps`) in form (`lat`, `lon`,`alt`) to master
 
+        Get **appended to** waypoint list
         '''
         master.mav.mission_count_send(
             target_system=master.target_system,
@@ -77,10 +115,12 @@ def main():
     START = time.time()
     MAX_PULL_WAIT = 5
 
+    add_fence(master) # ADD GEOFENCE!
+
     plan_conn, tmp = mp.Pipe(duplex=True)
     tmp1, tmp2 = mp.Pipe(duplex = True)
 
-    brain = mp.Process(target = planner.plan,args=(tmp,tmp1))
+    brain = mp.Process(target = planner.run_plan,args=(tmp,tmp1))
     mapper = mp.Process(target = map_maker.develop_map, args=(tmp2))
     
     brain.start()
@@ -112,6 +152,7 @@ def main():
                 '''
 
                 set_wps(newData,master)
+
 
         time.sleep(max(TIME_INCREMENT - float(time.time()-now),0))
 
