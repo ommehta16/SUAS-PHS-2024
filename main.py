@@ -5,6 +5,7 @@ import multiprocessing as mp
 from mission_planner.plane import Plane
 from mission_planner import planner
 from mapping import map_maker
+from camera import camera
 
 from pymavlink import mavutil, mavwp
 from pymavlink.dialects.v20 import common as mavlink2
@@ -122,6 +123,7 @@ def main():
 
     brain = mp.Process(target = planner.run_plan,args=(tmp,tmp1))
     mapper = mp.Process(target = map_maker.develop_map, args=(tmp2))
+    cam = mp.Process(target = camera.run_cam, args=())
     
     brain.start()
     mapper.start()

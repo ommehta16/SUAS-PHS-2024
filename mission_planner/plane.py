@@ -1,9 +1,16 @@
+'''
+Definition of Plane, an object that stores all info about the plane
+'''
+
 from pymavlink import mavutil, mavwp
 import time
 import math
 
 class Plane:
     def __init__(self,master):
+        '''
+        Initialize with mavlink connection _master_
+        '''
         self.vel = [0,0,0]
         '''
         [x, y, z]
@@ -23,7 +30,6 @@ class Plane:
         self.master = master
 
         # SET OTHER PROPS HERE
-
 
     def update_pos(self) -> bool:
         '''

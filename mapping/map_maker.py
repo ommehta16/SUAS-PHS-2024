@@ -6,12 +6,15 @@ import time
 
 
 def develop_map(conn:multiprocessing.connection.Connection):
+    imgs = []
     running = True
-    while True:
+    while running:
         # simple plumbing work :)
         while conn.poll():
             newData = conn.recv()
 
+            if type(newData) == tuple[np.ndarray, tuple[int,int,int]]:
+                imgs.append(newData)
             if type(newData) == str:
                 if newData == "stop":
                     running = False
@@ -20,6 +23,9 @@ def develop_map(conn:multiprocessing.connection.Connection):
                 ...
             else:
                 ...
+    # for each image, determine its size etc and ???
+
+    # assume that each image is north up
 
 
 
