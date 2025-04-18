@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "/Users/omehta/Desktop/SUAS-PHS-2024/mavlink"
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.typeCheckingMode": "off"
 }

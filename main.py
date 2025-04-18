@@ -2,6 +2,8 @@ import time
 import math
 import multiprocessing as mp
 
+import sys, os
+
 from mission_planner.plane import Plane
 from mission_planner import planner
 from mapping import map_maker
@@ -12,8 +14,17 @@ from pymavlink.dialects.v20 import common as mavlink2
 
 from VAR import *
 
+flight_num=0
+while os.path.exists(f"logs/flight{flight_num}.log"): flight_num+=1
+sys.stdout = open(f"logs/flight{flight_num}.log", 'w')
+
+
+# dumb variables to make code more readable
+MINUTE = 60
+HOUR = 3600
+
 def add_fence(master) -> None:
-    wps:list[tuple[int]] = GEOFENCE
+    wps:list[tuple[float,float,float]] = GEOFENCE
     for i, wp in enumerate(wps):
         master.mav.mission_item_send(
             target_system = master.target_system,
@@ -61,7 +72,7 @@ def set_wps(wps: list[tuple], master) -> None:
             target_component=master.target_component
         ) # clears all waypoints
         
-        send_wps(wps)
+        send_wps(wps,master)
 
 def send_wps(wps: list[tuple], master) -> None:
         '''
@@ -102,11 +113,45 @@ def send_wps(wps: list[tuple], master) -> None:
         )
 
 def main():
-    master = mavutil.mavlink_connection(CONNECTION_PORT,baud=57600) # we're connected over wire, so shouldn't lose anything
+    try:
+        master = mavutil.mavlink_connection(CONNECTION_PORT,baud=57600) # we're connected over wire, so shouldn't lose anything
+        print(f"Connected on {CONNECTION_PORT}")
+    except Exception as e:
+        print(f"Could not connect to autopilot: {e}")
+        exit()
+    
+    master.wait_heartbeat()
+    print(f"Heartbeat recieved from {master.target_system} via {master.target_component}")
 
-    if (not DEBUG):
-        master.wait_heartbeat()
-        print(f"Heartbeat recieved from {master.target_system} via {master.target_component}")
+    # Arm = pixhawk does safety checks + turns on motors etc.
+    master.mav.command_long_send(
+        master.target_system,
+        master.target_component,
+        mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+        0,
+        1,          # 1 = arm, 0 = disarm
+        0,0,0,0,0,0
+    )
+    print("arming system")
+    start = time.time()
+    armed = False
+
+    while not armed:
+        if time.time() > start + 1*MINUTE:
+            raise TimeoutError("Timed out while arming")
+            sys.exit(0)
+        try:
+            msg = master.recv_match(type="HEARTBEAT", blocking=True, timeout=1)
+            if msg:
+                if msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED:
+                    armed=True
+                    print("armed!")
+        except Exception as e:
+            print(f"Error recieving heartbeat: {e}")
+            break
+    if not armed:
+        print(f"Could not arm the system. Check for pre-arm conditions.")
+        sys.exit(1)
 
     plane = Plane(master)
 
@@ -122,7 +167,7 @@ def main():
     tmp1, tmp2 = mp.Pipe(duplex = True)
 
     brain = mp.Process(target = planner.run_plan,args=(tmp,tmp1))
-    mapper = mp.Process(target = map_maker.develop_map, args=(tmp2))
+    mapper = mp.Process(target = map_maker.develop_map, args=(tmp2,))
     cam = mp.Process(target = camera.run_cam, args=())
     
     brain.start()
@@ -130,7 +175,20 @@ def main():
     joined = False
     
     lastPull = time.time()
+
+    # try to take off
+    plane.takeoff()
     
+
+    # For proof of flight, now has to:
+    #  - generate + set waypoints
+    #  - switch mode from LOITER to AUTO
+    #  - track waypoint completion
+    #  - land
+
+    # 1 and 2 are easy
+    # 3 and 4 depend on pymavlink api (need to research more)
+
     while True:
         now:float = time.time()
 

@@ -30,6 +30,39 @@ class Plane:
         self.master = master
 
         # SET OTHER PROPS HERE
+    
+    def takeoff(self):
+        ALT_TO = 20 # in meters
+        self.master.mav.command_takeoff_send(
+            self.master.target_system,  # Target system ID
+            self.master.target_component, # Target component ID
+            0,                  # Do not use takeoff yaw
+            0,                  # Latitude (not used for takeoff)
+            0,                  # Longitude (not used for takeoff)
+            ALT_TO,             # Altitude to takeoff to (in meters)
+            0, 0, 0             # Empty params for takeoff
+        )
+
+        reached_altitude = False
+        start=time.time()
+        while not reached_altitude and time.time() > start + 5*60:
+            self.update_pos()
+            print(f"Current altitude: {self.alt} meters")
+            if self.alt >= ALT_TO * 0.95: # Check if close to target
+                reached_altitude = True
+                print("reached takeoff altitude")
+        if not reached_altitude:
+            raise TimeoutError("didn't reach takeoff target altitude in time")
+
+        # plane should loiter until sent flight plan up
+        mode = 'LOITER'
+        mode_id = self.master.mode_mapping()[mode]
+        self.master.mav.set_mode_send(
+            self.master.target_system,
+            mavutil.mavlink.MAV_MODE_CUSTOM_MODE,
+            mode_id
+        )
+        print(f"Transitioned to {mode} mode.")
 
     def update_pos(self) -> bool:
         '''
